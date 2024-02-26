@@ -1,89 +1,44 @@
-import React, { useState, useEffect } from "react";
-import { createMachine } from "xstate";
-
-const hospitalManagementMachine = createMachine({
-  id: "hospital",
-  initial: "patientInfoReceived",
-  states: {
-    patientInfoReceived: {
-      on: {
-        ASSIGN_TASK: "taskAssignedToNurses",
-      },
-    },
-    taskAssignedToNurses: {
-      on: {
-        INCREASE_COUNTER: "nursePatientCounterIncreased",
-      },
-    },
-    nursePatientCounterIncreased: {
-      on: {
-        RECEIVE_PATIENT_INFO: "nurseReceivesPatientInfo",
-      },
-    },
-    nurseReceivesPatientInfo: {
-      on: {
-        RECEIVE_PATIENT: "nurseReceivesPatientInHoldingArea",
-      },
-    },
-    nurseReceivesPatientInHoldingArea: {
-      on: {
-        TRIGGER_TASK: "nurseTasksForPatientTriggered",
-      },
-    },
-    nurseTasksForPatientTriggered: {
-      on: {
-        REQUEST_SUPPORT: "nurseRequestsEmergencySupport",
-        FINISH_TASK: "nurseTaskForPatientFinished",
-      },
-    },
-    nurseRequestsEmergencySupport: {
-      // Define actions or transitions here
-    },
-    nurseTaskForPatientFinished: {
-      on: {
-        MOVE_TO_OPERATION: "operationRoom",
-      },
-    },
-    operationRoom: {
-      // Define actions or transitions here
-    },
-  },
-});
-
+import { useMachine } from "@xstate/react";
+import { patientFlow } from "./patientFlow";
 
 function App() {
-  const [state, setState] = useState(hospitalManagementMachine.state);
-  const [patient, setPatient] = useState({ id: "1", name: "John Doe" });
-  const [nurse, setNurse] = useState({ id: "1", name: "Jane Doe" });
+  const [state, send] = useMachine(patientFlow);
 
-  useEffect(() => {
-    hospitalManagementMachine.onTransition((nextState) => {
-      setState(nextState);
-    });
-  }, []);
-
-  const assignTask = () => {
-    hospitalManagementMachine.send("ASSIGN_TASK", { nurse });
-  };
-
-  const finishTask = () => {
-    hospitalManagementMachine.send("FINISH_TASK", { nurse });
-  };
-
+  // render UI based on state
   return (
     <div>
-      <h2>Patient Info</h2>
-      <p>ID: {patient.id}</p>
-      <p>Name: {patient.name}</p>
+      {state.matches("patientInfoReceived") && (
+        <button
+          onClick={() =>
+            send(
+              { type: "ASSIGN_TASKS" },
+              {
+                nurseId: 1,
+                tasks: ["Draw blood", "Take vitals"],
+              }
+            )
+          }
+        >
+          Assign Tasks
+        </button>
+      )}
 
-      <h2>Nurse Info</h2>
-      <p>ID: {nurse.id}</p>
-      <p>Name: {nurse.name}</p>
-
-      <h2>Current State: {state ? state.value : 'Loading...'}</h2>
-
-      <button onClick={assignTask}>Assign Task</button>
-      <button onClick={finishTask}>Finish Task</button>
+      {state.matches("tasksTriggered") && (
+        <button
+          onClick={() =>
+            send(
+              { type: "FINISH_TASK" },
+              {
+                nurseId: 1,
+                description: "Drew blood",
+              }
+            )
+          }
+        >
+          Mark Task Complete
+        </button>
+      )}
+      {state.matches("tasksFinished") && <p>All tasks complete!</p>}
     </div>
   );
 }
